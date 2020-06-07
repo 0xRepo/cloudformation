@@ -1,156 +1,122 @@
-# PseudoParameters Reference
-# Can refer to those from anywhere by using !ref
-#AWS::Region
-#AWS::AccountId
-#AWS::NotificationsARNs
-#AWS::NoValue
-#AWS::Partition
-#AWS::StackId
-#AWS::StackName
-#AWS::URLSuffix
-
-AWSTemplateFormatVersion: "2010-09-09"
-Description: "A lambda function in the development/test/production environment"
+AWSTemplateFormatVersion: 2010-09-09
+Description: A lambda function in the development/test/production environment
 
 Parameters:
   AdminRoleNameParameter:
-    Description: "The name of the IAM role used by administrators"
-    Type: "String"
+    Description: The name of the IAM role used by administrators
+    Type: String
     AllowedValues: ["AdminRole", "TestAdminRole"]
-
   EnvironmentParameter:
     Description: "The environment that this stack is running in"
     Type: "String"
     AllowedValues: ["development", "test", "production"]
-
-# Can only use intrinsic functions in 
-#- resources Properties
-#- output
-#- metadata attributes
-#- update policy attributes
-# Can use to have conditional creation of stacks. Ex: based on environment
+    
 Resources:
-  # Used by the lambda
   ExampleIAMRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument: Json
-      # allows iam to use 
       Description: |
-        Used by ExamplelambdaFunction. The IAM role needs to account for the following:
+        Used by ExamplelambdaFunction. The IAM role needs to account for the following
         The lambda function will output logs which developers will need to see later in Cloudwatch.
         The lambda function needs to be able to create secrets values in AWS Secrets Manager. It should have full access to the secret. However it does not need to read the secret. The names of these secrets must be restricted to start with the environment name, depending on the value passed into the EnvironmentParameter value of the stack.
         The lambda function will encrypt using the KMS key.
         The IAM role's path needs to be passed into the template as a Cloudformation parameter.
-      ManagedPolicyArns:
-        - !GetAtt ExampleIamRolePolicy.Arn
-      MaxSessionDuration: Integer
-      Path: String
-      PermissionsBoundary: String
-      Policies:
-        - AWSServiceRoleForCloudWatchEvents
-      RoleName: String
-      Tags:
-        - { Key: "Environment", Value: !Ref EnvironmentParameter }
-        - { Key: "ResourceName", Value: "ExampleIAMRole" }
-
-  ExampleIAMRolePolicy:
-    Type: AWS::IAM::Policy
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - 'sts:AssumeRole'
+  RolePolicies:
+    Type: "AWS::IAM::Policy"
     Properties:
-      PolicyName: ExampleIAMRolePolicy
-      PolicyDocument: {
-  "Version" : "2012-10-17",
-  "Statement" : [
-    {
-      "Effect": "Allow",
-      # !sub is useful to create ARN.
-      # Read docs for Ref. It refers to a parameter or resource
-      "Principal": {"AWS": !Sub "arn:aws:iam::${AWS::AccountId}:role/${Fn::GetAttr ExampleKMSKey.Arn}",
-      "Action": "secretsmanager:CreateSecret",
-      "Resource": "*",
-      "Condition": {
-        "ForAnyValue:StringEquals": {
-          "secretsmanager:VersionStage" : "AWSCURRENT"
-        }
-      }
-    }
-    }
-  ]
-}
-
-
-  # Permissions
-  # Allows sending logs to cloudwatch
-  # Allows creating Secrets in AWS Secrets Manager (No read) name the secret with start of environment name
-  # Allows lambda to use kms key for encryption
-
+        PolicyName: "ExampleIAMRolePolicy"
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - 
+              Effect: "Allow"
+        Resource: !Sub >-
+            "arn:aws:iam::${AWS::AccountId}:role/${ExampleIAMRole.Name}"
+        Action: 'secretsmanager:CreateSecret'
+        Resource: '*'
+        Tags:
+          -
+            Key: "Environment"
+            Value: !Ref EnvironmentParameter
+          - 
+            Key: "ResourceName"
+            Value: "ExampleIAMRole"
+      
   ExampleLambdaFunction:
     Type: "AWS::Lambda::Function"
-    Description: |
-      The `FunctionName` of the lambda function needs to be set to the correct value of "development-example-lambda" or "test-example-lambda" or "production-example-lambda"
-      Add a tag to the lambda function with a key of "Stack" and a value set to the stack name.
-      The lambda function needs to know which environment (development/test/production) it is running in. Pass in the value into an environment variable named RUNNING_ENVIRONMENT.
     Properties:
+      Description: |
+        The `FunctionName` of the lambda function needs to be set to the correct value of "development-example-lambda" or "test-example-lambda" or "production-example-lambda"
+        Add a tag to the lambda function with a key of "Stack" and a value set to the stack name.
+        The lambda function needs to know which environment (development/test/production) it is running in. Pass in the value into an environment variable named RUNNING_ENVIRONMENT.
       Code:
         ZipFile: "Code goes here"
       Description: "A lambda function"
       Handler: "index.handler"
+      Role: !Ref ExampleIAMRole
       MemorySize: "128"
       Runtime: "python3.8"
       Tags:
-        - { Key: "Environment", Value: !Ref EnvironmentParameter }
-        - { Key: "ResourceName", Value: "ExampleLambdaFunction" }
-        - { Key: "Stack", Value: !Ref AWS::StackName }
+        - 
+          Key: "Environment"
+          Value: !Ref EnvironmentParameter
+        -
+          Key: "ResourceName"
+          Value: "ExampleLambdaFunction"
+        -
+          Key: "Stack"
+          Value: !Ref AWS::StackName
       Timeout: "5"
 
-  # Passes
   ExampleKMSKey:
-  Type: AWS::KMS::Key
+    Type: AWS::KMS::Key
     Properties: 
       Description: KMS key used by lambda to encrypt secrets created. complete access by the AWS account root user
       Enabled: True
       EnableKeyRotation: True
-      # Specifically, the key policy must include the policy statement that enables IAM policies. 
       KeyPolicy: True
       KeyUsage: ENCRYPT_DECRYPT
       PendingWindowInDays: 7
       Tags: 
-        - { Key: "Environment", Value: !Ref EnvironmentParameter }
-        - { Key: "ResourceName", Value: "ExampleKMSKey" }
+        - 
+          Key: "Environment"
+          Value: !Ref EnvironmentParameter
+        -
+          Key: "ResourceName"
+          Value: "ExampleKMSKey"
 
   ExampleManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       Description: allowing access to encrypt with the KMS key
-      Groups:
-        - String
-      ManagedPolicyName: String
-      Path: String
-      PolicyDocument: {
-  "Version": "2012-10-17",
-  "Statement": {
-    "Effect": "Allow",
-    "Action": [
-      "kms:Encrypt",
-    ],
-    "Resource": [
-      !GetAtt ExampleKMSKey.Arn
-    ],
-    "Condition": {
-      "StringEquals": {
-        !sub arn:aws:iam::${AWS::AccountId}:root
-      }
-    }
-  }
-} 
-      Roles:
-        - String
-      Users:
-        - String
+      ManagedPolicyName: ExampleManagedPolicy
+      PolicyDocument:
+        Version": 2012-10-17
+        Statement:
+            - Effect: "Allow"
+              Action: 'kms:Encrypt'
+              Resource: !Ref ExampleKMSKey
+              Condition:
+                StringEquals: !Join                
+                  - ''
+                  - - 'arn:aws:iam:'
+                    - ':'
+                    - !Ref 'AWS::AccountId'
+                    - ':root'
 
-Output:
+Outputs:
   ManagedPolicyARN:
     Description: Outputs the arn of the managed policy
-    Value: !GetAtt ExampleManagedPolicy.Arn
-    Export:
-      Name: Value
+    Value: !Ref ExampleManagedPolicy
+    Export: 
+      Name: !Sub "${AWS::StackName}-VPCID"
