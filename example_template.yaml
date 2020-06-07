@@ -45,10 +45,11 @@ Resources:
           Statement:
             - 
               Effect: "Allow"
-        Resource: !Sub >-
-            "arn:aws:iam::${AWS::AccountId}:role/${ExampleIAMRole.Name}"
-        Action: "secretsmanager:CreateSecret"
-        Resource: "*"
+              Action: "secretsmanager:CreateSecret"
+              Resource: !GetAtt ExampleIAMRole.Arn
+          Roles:
+            -
+              Ref: "ExampleIAMRole"
         Tags:
           -
             Key: "Environment"
@@ -87,9 +88,25 @@ Resources:
     Type: "AWS::KMS::Key"
     Properties: 
       Description: "KMS key used by lambda to encrypt secrets created. complete access by the AWS account root user"
-      Enabled: "True"
-      EnableKeyRotation: "False"
-      KeyPolicy: "False"
+      Enabled: "true"
+      EnableKeyRotation: "false"
+      KeyPolicy:
+        Version: "2012-10-17"
+        id: "key-default"
+        Statement:
+        - Sid: "Allow use of the key"
+          Effect: Allow
+          Principal:
+            AWS: arn:aws:iam::123456789012:user/Bob
+          Action:
+          - kms:DescribeKey*
+          - kms:Encrypt*
+          - kms:Decrypt*
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          - kms:GenerateDataKeyWithoutPlaintext*
+          Resource: !Ref 'ExampleLambdaFunction'
+        
       KeyUsage: "ENCRYPT_DECRYPT"
       PendingWindowInDays: "7"
       Tags: 
