@@ -43,7 +43,7 @@ Resources:
         The lambda function will encrypt using the KMS key.
         The IAM role's path needs to be passed into the template as a Cloudformation parameter.
       ManagedPolicyArns:
-        - String
+        - !GetAtt ExampleIamRolePolicy.Arn
       MaxSessionDuration: Integer
       Path: String
       PermissionsBoundary: String
@@ -55,8 +55,10 @@ Resources:
         - { Key: "ResourceName", Value: "ExampleIAMRole" }
 
   ExampleIAMRolePolicy:
-    Type: AWS::IAM::Role Policy
-    PolicyDocument: {
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ExampleIAMRolePolicy
+      PolicyDocument: {
   "Version" : "2012-10-17",
   "Statement" : [
     {
@@ -71,6 +73,7 @@ Resources:
           "secretsmanager:VersionStage" : "AWSCURRENT"
         }
       }
+    }
     }
   ]
 }
