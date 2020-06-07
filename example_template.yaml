@@ -46,17 +46,9 @@ Resources:
             - 
               Effect: "Allow"
               Action: "secretsmanager:CreateSecret"
-              Resource: !GetAtt ExampleIAMRole.Arn
-          Roles:
-            -
-              Ref: "ExampleIAMRole"
-        Tags:
-          -
-            Key: "Environment"
-            Value: !Ref EnvironmentParameter
-          - 
-            Key: "ResourceName"
-            Value: "ExampleIAMRole"
+              Resource: !GetAtt "ExampleIAMRole.Arn"
+        Roles:
+          - !Ref ExampleIAMRole
       
   ExampleLambdaFunction:
     Type: "AWS::Lambda::Function"
@@ -69,9 +61,10 @@ Resources:
         ZipFile: "Code goes here"
       Description: "A lambda function"
       Handler: "index.handler"
-      Role: !Ref ExampleIAMRole
+      Role: !GetAtt ExampleIAMRole.Arn
       MemorySize: "128"
-      Runtime: "python3.8"
+      # ZipFile can only be used when Runtime is set to either of nodejs8.10, nodejs10.x, nodejs12.x, python2.7, python3.6, python3.7.
+      Runtime: "python3.7"
       Tags:
         - 
           Key: "Environment"
@@ -83,7 +76,27 @@ Resources:
           Key: "Stack"
           Value: !Ref AWS::StackName
       Timeout: "5"
-
+      
+#        - Sid: Allow use of the key
+#          Effect: Allow
+#          Principal:
+#            AWS: !GetAtt ExampleLambdaFunction.Arn
+#          Action:
+#          - kms:Describe*
+#          - kms:List*
+#          - kms:Encrypt
+#          Resource: '*'
+#        - Sid: Enable IAM User Permissions
+#          Effect: Allow
+#          Principal:
+#            AWS: 
+#              Fn::Join:                
+#              - ''
+#              - - 'arn:aws:iam::'
+#                - Ref: AWS::AccountId
+#                - ':root'
+#          Action: kms:*
+#          Resource: '*'
   ExampleKMSKey:
     Type: "AWS::KMS::Key"
     Properties: 
@@ -91,24 +104,33 @@ Resources:
       Enabled: "true"
       EnableKeyRotation: "false"
       KeyPolicy:
-        Version: "2012-10-17"
-        id: "key-default"
+        Version: '2012-10-17'
+        id: "key-default-3"
         Statement:
-        - Sid: "Allow use of the key"
-          Effect: Allow
-          Principal:
-            AWS: arn:aws:iam::123456789012:user/Bob
-          Action:
-          - kms:DescribeKey*
-          - kms:Encrypt*
-          - kms:Decrypt*
-          - kms:ReEncrypt*
-          - kms:GenerateDataKey*
-          - kms:GenerateDataKeyWithoutPlaintext*
-          Resource: !Ref 'ExampleLambdaFunction'
-        
-      KeyUsage: "ENCRYPT_DECRYPT"
-      PendingWindowInDays: "7"
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Join ["", ["arn:aws:iam::", !Ref "AWS::AccountId", ":root"]]
+            Action: kms:*
+            Resource: '*'
+          - Sid: Allow administration of the key
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt ExampleLambdaFunction.Arn
+            Action:
+            - kms:Create*
+            - kms:Describe*
+            - kms:Enable*
+            - kms:List*
+            - kms:Put*
+            - kms:Update*
+            - kms:Revoke*
+            - kms:Disable*
+            - kms:Get*
+            - kms:Delete*
+            - kms:ScheduleKeyDeletion
+            - kms:CancelKeyDeletion
+            Resource: '*'
       Tags: 
         - 
           Key: "Environment"
