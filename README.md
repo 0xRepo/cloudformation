@@ -26,3 +26,6 @@ An IAM managed policy allowing access to encrypt with the KMS key is required. T
 The ARN of the managed policy needs to be output from the stack for use in other stacks.
 
 
+## Resources
+https://www.fischco.org/technica/2017/cloud-formation-sub/
+Read the docs for intrinsci functions ex: transform, sub
